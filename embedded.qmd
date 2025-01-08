@@ -4,7 +4,6 @@ format: html
 ---
 ```{r setup, echo=FALSE, include=FALSE}
 
-{r setup, echo=FALSE, include=FALSE}
 library(dplyr)
 library(tidyverse)
 library(plotly)
@@ -15,88 +14,104 @@ library(grid)
 library(readr)
 library(rmarkdown)
 library(emojifont)
+library(ggrepel)
+library(readr)
 
 
-UV_results_Read <-read_csv("EmbeddedFiles/UV_results_FULL.csv")
-UV_results <-UV_results_Read%>%
-  filter(sample=="THP1")%>%
-  filter(comparison=="FA_8_3_UV - FA_8_3_noUV"|comparison=="FA_1_10_UV - FA_1_10_noUV"|comparison=="Spa_UV - Spa_noUV"|comparison=="Sph_UV - Sph_noUV")%>%
-  mutate(trend=case_when(logFC<=0 ~ "Depleted",
-                         logFC>=1 & pvalue<0.05 ~ "Significantly enriched", 
-                         logFC>0 ~ "Partially enriched"))%>%
-  mutate(Gene=gene_name)%>%
-  mutate(pi=logFC*-log10(pvalue))%>%
-  select(Gene,logFC,pvalue,pi,comparison,AveExpr,hit_annotation,trend)
+Mtb_results_UVannotations <- readr::read_csv("EmbeddedFiles/Interactomics_CombinedUVandMtbData.csv")
 
-UV_results$trend <- factor(pull(UV_results, trend), levels = c("Depleted", "Partially enriched", "Significantly enriched"))
-UV_results$comparison <- factor(pull(UV_results, comparison), levels = c("Sph_UV - Sph_noUV", "Spa_UV - Spa_noUV", "FA_8_3_UV - FA_8_3_noUV", "FA_1_10_UV - FA_1_10_noUV"))
+Mtb_WTvsMock_data <- Mtb_results_UVannotations |>
+  filter(comparison == "H37Rv_24h - Mock_24h" | comparison == "H37Rv_96h - Mock_96h") |>
+  select(gene_name, logFC, pvalue, GG_StatAnnotation, Trend_in_UV_expt, comparison,sample)
 
-Sph_UV_results <- UV_results %>%
-  filter(comparison == "Sph_UV - Sph_noUV") %>%
-  mutate(Sph_UV_logFC=logFC,Sph_UV_pvalue=pvalue,Sph_UV_AveExpr=AveExpr,Sph_UV_hit_annotation=hit_annotation, Sph_UV_trend=trend) %>%
-  select(Gene,Sph_UV_logFC,Sph_UV_pvalue,Sph_UV_AveExpr,Sph_UV_hit_annotation,Sph_UV_trend)%>%
-  arrange(Sph_UV_logFC)
+Mtb_WTvsMock_data$GG_StatAnnotation <- factor(pull(Mtb_WTvsMock_data, GG_StatAnnotation), levels = c("no hit", "candidate", "hit"))
+Mtb_WTvsMock_data$sample <- factor(pull(Mtb_WTvsMock_data, sample), levels = c("Sph", "FA_8_3"))
 
-FA_8_3_UV_results <-UV_results%>%
-  filter(comparison == "FA_8_3_UV - FA_8_3_noUV")%>%
-  mutate(FA_8_3_UV_logFC=logFC,FA_8_3_UV_pvalue=pvalue,FA_8_3_UV_AveExpr=AveExpr,FA_8_3_UV_hit_annotation=hit_annotation,FA_8_3_UV_trend=trend)%>%
-  select(Gene,FA_8_3_UV_logFC,FA_8_3_UV_pvalue,FA_8_3_UV_AveExpr,FA_8_3_UV_hit_annotation,FA_8_3_UV_trend)%>%
-  arrange(FA_8_3_UV_logFC)
 
-Spa_UV_results<-UV_results%>%
-  filter(comparison == "Spa_UV - Spa_noUV")%>%
-  arrange(logFC)
 
-FA_1_10_UV_results <-UV_results%>%
-  filter(comparison == "FA_1_10_UV - FA_1_10_noUV")%>%
-  arrange(logFC)
+datasetLimits.x<-c(-max(abs(Mtb_WTvsMock_data$logFC)),max(abs(Mtb_WTvsMock_data$logFC)))
+datasetLimits.y<-c(0,max(-log10(Mtb_WTvsMock_data$pvalue)))
 
-Sph_UV_results_neat<-UV_results%>%
-  filter(comparison == "Sph_UV - Sph_noUV")%>%
-  arrange(logFC)
+comparison.labs <- c("H37Rv vs Mock, 24hrs", "H37Rv vs Mock, 96hrs")
+names(comparison.labs) <- c("H37Rv_24h - Mock_24h", "H37Rv_96h - Mock_96h")
 
-Spa_UV_results_neat<-UV_results%>%
-  filter(comparison == "Spa_UV - Spa_noUV")%>%
-  arrange(logFC)
+sample.labs <- c("Tf-Sphingosine", "Tf-Fatty Acid")
+names(sample.labs) <- c("Sph", "FA_8_3")
 
-FA_8_3_UV_results_neat<-UV_results%>%
-  filter(comparison == "FA_8_3_UV - FA_8_3_noUV")%>%
-  arrange(logFC)
 
-FA_1_10_UV_results_neat<-UV_results%>%
-  filter(comparison == "FA_1_10_UV - FA_1_10_noUV")%>%
-  arrange(logFC)
+Mtb_WTvsMock_ggplots <- ggplot(data = Mtb_WTvsMock_data,
+                               aes(x = logFC,
+                                   y = -log10(pvalue),
+                                   fill = factor(GG_StatAnnotation),
+                                   alpha = Trend_in_UV_expt,
+                                   shape = Trend_in_UV_expt,
+                                   size = Trend_in_UV_expt,
+                                   color = factor(GG_StatAnnotation))) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_x_continuous(limits =  datasetLimits.x) +
+  scale_y_continuous(limits =  datasetLimits.y)+
+  geom_point(stroke = 0.15, aes(text = paste0("Gene name: ", gene_name,
+                               "\n","LogFC: ", logFC,
+                               "\n","p-value: ", pvalue,
+                               "\n","UV Trend: ", Trend_in_UV_expt,
+                               "\n","Mtb enrichment: ", GG_StatAnnotation))) +
+  scale_alpha_manual(values=c("Partially Enriched" = 0.25,
+                              "Significantly Enriched" = .5,
+                              "Depleted" = 0.125,
+                              "No +/-UV data" = 0.25),
+                     name="+/-UV results")+
+  scale_shape_manual(values=c("Partially Enriched" = 24,
+                              "Significantly Enriched" = 21,
+                              "Depleted" = 22,
+                              "No +/-UV data" = 23),
+                     name="+/-UV results")+
+  scale_size_manual(values=c("Partially Enriched" = 1.5,
+                             "Significantly Enriched" = 3,
+                             "Depleted" = 0.5,
+                             "No +/-UV data" = 1.5),
+                    name="+/-UV results")+
+  scale_fill_manual(values=c("no hit" = "black", 
+                             "candidate" = "purple", 
+                             "hit" = "orange"),
+                    name = "Mtb Annotation") +
+  scale_color_manual(values = c("no hit" = "black", 
+                                "candidate" = "black", 
+                                "hit" = "black"),
+                     name = "Mtb Annotation") + 
+  xlab("log2(fold change)")+
+  ylab("-log10(pvalue")+  
+  geom_text_repel(data = subset(Mtb_WTvsMock_data, GG_StatAnnotation == "hit"),
+                  aes(x = logFC, y = -log10(pvalue), label = gene_name),
+                  colour = "black",
+                  size = 3,
+                  point.padding = 0.5,
+                  box.padding = 0.5,
+                  alpha = 0.75,
+                  force = 0.5,
+                  force_pull = 5,
+                  max.overlaps = 10)+
+  theme_minimal()+
+  guides(fill = guide_legend(
+    ncol = 1,
+    bycol = TRUE,
+    override.aes = list(shape = 21, size = 3, alpha = 1, color = "black")
+  )) +
+  theme(axis.line=element_line())+
+  theme(axis.ticks.length = unit(-5, "pt"))+
+  theme(panel.spacing.x = unit(1, "lines"))+
+  theme(panel.spacing.y = unit(2, "lines"))+
+  facet_grid(cols = vars(comparison), rows = vars(sample), 
+             labeller = labeller(comparison = comparison.labs,
+                                 sample = sample.labs))
+                                 
+Mtb_WTvsMock_ggplotly <- plotly::ggplotly(Mtb_WTvsMock_ggplots, 
+                 tooltip = c("text", dynamicTicks = TRUE),
+                 hovermode="closest",
+                 autosize = T, 
+                 margin = m) |>
+                 layout(showlegend = FALSE)
 
-Mtb_Data <- read_csv("EmbeddedFiles/Interactomics_AllDataWide.csv") |>
-  mutate(New_StatAnnotation = case_when(abs(logFC) > 2 & pvalue < 0.01 & hit_annotation == "hit" ~ "Significant",
-                                        abs(logFC) > 1 & pvalue < 0.05 ~ "Partially significant",
-                                        .default = "Not significant")) |>
-  mutate(sample = case_when(sample == "Sph" ~ "tf-Sph",
-                            sample == "FA_8_3" ~ "tf-8:3-FA")) |>
-  filter(comparison != "(H37Rv_96h - Mock_96h) - (H37Rv_24h - Mock_24h)" & comparison != "(H37Rv_96h - H37Rv_24h) - (Mock_96h - Mock_24h)" & comparison != "(dRD1_96h - Mock_96h) - (dRD1_24h - Mock_24h)" & comparison != "(dRD1_96h - dRD1_24h) - (Mock_96h - Mock_24h)" & comparison != "(dRD1_96h - dRD1_24h) - (H37Rv_96h - H37Rv_24h)" & comparison != "(H37Rv_96h - dRD1_96h) - (H37Rv_24h - dRD1_24h)") |>
-  select(-c(X.1, X, pi, protein_id, hit_annotation, Sph_UV_logFC, Sph_UV_pvalue, Sph_UV_AveExpr, Sph_UV_fdr, Sph_UV_hit_annotation, FA_UV_hit_annotation, FA_UV_logFC, FA_UV_pvalue, FA_UV_AveExpr, GG_StatAnnotation)) |>
-  mutate(comparison = case_when(comparison == "dRD1_24h - Mock_24h" ~ "\u0394RD1_24h - Mock_24h",
-                                comparison == "dRD1_96h - Mock_96h" ~ "\u0394RD1_96h - Mock_96h",
-                                comparison == "H37Rv_24h - dRD1_24h" ~ "H37Rv_24h - \u0394RD1_24h",
-                                comparison == "H37Rv_96h - dRD1_96h" ~ "H37Rv_96h - \u0394RD1_96h",
-                                comparison == "dRD1_96h - dRD1_24h" ~ "\u0394RD1_96h - \u0394RD1_24h",
-                                .default = comparison))
-
-Mtb_Data$comparison <- factor(pull(Mtb_Data, comparison), levels = c("H37Rv_24h - Mock_24h",
-                                                                     "H37Rv_96h - Mock_96h",
-                                                                     "\u0394RD1_24h - Mock_24h",
-                                                                     "\u0394RD1_96h - Mock_96h",
-                                                                     "H37Rv_24h - \u0394RD1_24h",
-                                                                     "H37Rv_96h - \u0394RD1_96h",
-                                                                     "H37Rv_96h - H37Rv_24h",
-                                                                     "\u0394RD1_96h - \u0394RD1_24h",
-                                                                     "Mock_96h - Mock_24h"))
-
-Mtb_Data <- Mtb_Data |> arrange(by = comparison)
-
-MtbvsComparisonList <- unique(Mtb_Data$comparison)
-
-length(MtbvsComparisonList)
 
 ```
 
@@ -110,7 +125,30 @@ THP-1 macrophages were activated and treated with each of the 4 lipid probes in 
 
 ![](/EmbeddedFiles/BaselineProteomics_ExperimentalDesign.png)
 
+### Volcano plots
+
+Not here yet in this example site.
 
 ## Trifunctional probe interactomics during Mtb infection infection
 
 In this visualization tool, we have prepared the results of two independent mass spectrometry analyses. The tf-Sphingosine-treated samples are one complete dataset, and the tf-8:3-Fatty acid-treated samples are another. This visualization tool will allow you to qualitatively look at these results side-by-side and even against each other, but please note that quantitative differences should be viewed skeptically.
+
+### Experimental Design
+
+![](/EmbeddedFiles/MtbProteomics_ExperimentalDesign.png)
+
+### Volcano plots
+
+Volcano plots are a very common way to look at ratiometic data, capturing both the relative enrichment of each protein between two conditions (here log2 transformed +UV versus -UV on the x-axis) and the statistical p-value of each protein (here -log10 transformed on the y-axis). Proteins with log2(+UV/-UV)>0 are more enriched in the +UV condition than the -UV condition - here denoted in purple as 'partially enriched'. If a protein has a log2(+UV/-UV)>1 and a p-value<0.05, it has been denoted in orange as 'significantly enriched'.
+
+:::{.border}
+```{r, echo=FALSE}
+Mtb_WTvsMock_ggplotly
+```
+:::
+
+
+### MA Plots
+
+### Comparison Plots
+

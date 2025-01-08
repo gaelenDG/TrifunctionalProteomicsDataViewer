@@ -9,6 +9,8 @@ website:
         text: Home
       - text: "Shiny App"
         href: shiny.qmd
+      - text: "Embedded Data"
+        href: embedded.qmd
       - about.qmd
 
 
