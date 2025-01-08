@@ -1,0 +1,116 @@
+---
+title: "Embeded data visualization Example"
+format: html
+---
+```{r setup, echo=FALSE, include=FALSE}
+
+{r setup, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(plotly)
+library(ggplot2)
+library(ggrepel)
+library(shiny)
+library(grid)
+library(readr)
+library(rmarkdown)
+library(emojifont)
+
+
+UV_results_Read <-read_csv("EmbeddedFiles/UV_results_FULL.csv")
+UV_results <-UV_results_Read%>%
+  filter(sample=="THP1")%>%
+  filter(comparison=="FA_8_3_UV - FA_8_3_noUV"|comparison=="FA_1_10_UV - FA_1_10_noUV"|comparison=="Spa_UV - Spa_noUV"|comparison=="Sph_UV - Sph_noUV")%>%
+  mutate(trend=case_when(logFC<=0 ~ "Depleted",
+                         logFC>=1 & pvalue<0.05 ~ "Significantly enriched", 
+                         logFC>0 ~ "Partially enriched"))%>%
+  mutate(Gene=gene_name)%>%
+  mutate(pi=logFC*-log10(pvalue))%>%
+  select(Gene,logFC,pvalue,pi,comparison,AveExpr,hit_annotation,trend)
+
+UV_results$trend <- factor(pull(UV_results, trend), levels = c("Depleted", "Partially enriched", "Significantly enriched"))
+UV_results$comparison <- factor(pull(UV_results, comparison), levels = c("Sph_UV - Sph_noUV", "Spa_UV - Spa_noUV", "FA_8_3_UV - FA_8_3_noUV", "FA_1_10_UV - FA_1_10_noUV"))
+
+Sph_UV_results <- UV_results %>%
+  filter(comparison == "Sph_UV - Sph_noUV") %>%
+  mutate(Sph_UV_logFC=logFC,Sph_UV_pvalue=pvalue,Sph_UV_AveExpr=AveExpr,Sph_UV_hit_annotation=hit_annotation, Sph_UV_trend=trend) %>%
+  select(Gene,Sph_UV_logFC,Sph_UV_pvalue,Sph_UV_AveExpr,Sph_UV_hit_annotation,Sph_UV_trend)%>%
+  arrange(Sph_UV_logFC)
+
+FA_8_3_UV_results <-UV_results%>%
+  filter(comparison == "FA_8_3_UV - FA_8_3_noUV")%>%
+  mutate(FA_8_3_UV_logFC=logFC,FA_8_3_UV_pvalue=pvalue,FA_8_3_UV_AveExpr=AveExpr,FA_8_3_UV_hit_annotation=hit_annotation,FA_8_3_UV_trend=trend)%>%
+  select(Gene,FA_8_3_UV_logFC,FA_8_3_UV_pvalue,FA_8_3_UV_AveExpr,FA_8_3_UV_hit_annotation,FA_8_3_UV_trend)%>%
+  arrange(FA_8_3_UV_logFC)
+
+Spa_UV_results<-UV_results%>%
+  filter(comparison == "Spa_UV - Spa_noUV")%>%
+  arrange(logFC)
+
+FA_1_10_UV_results <-UV_results%>%
+  filter(comparison == "FA_1_10_UV - FA_1_10_noUV")%>%
+  arrange(logFC)
+
+Sph_UV_results_neat<-UV_results%>%
+  filter(comparison == "Sph_UV - Sph_noUV")%>%
+  arrange(logFC)
+
+Spa_UV_results_neat<-UV_results%>%
+  filter(comparison == "Spa_UV - Spa_noUV")%>%
+  arrange(logFC)
+
+FA_8_3_UV_results_neat<-UV_results%>%
+  filter(comparison == "FA_8_3_UV - FA_8_3_noUV")%>%
+  arrange(logFC)
+
+FA_1_10_UV_results_neat<-UV_results%>%
+  filter(comparison == "FA_1_10_UV - FA_1_10_noUV")%>%
+  arrange(logFC)
+
+Mtb_Data <- read_csv("EmbeddedFiles/Interactomics_AllDataWide.csv") |>
+  mutate(New_StatAnnotation = case_when(abs(logFC) > 2 & pvalue < 0.01 & hit_annotation == "hit" ~ "Significant",
+                                        abs(logFC) > 1 & pvalue < 0.05 ~ "Partially significant",
+                                        .default = "Not significant")) |>
+  mutate(sample = case_when(sample == "Sph" ~ "tf-Sph",
+                            sample == "FA_8_3" ~ "tf-8:3-FA")) |>
+  filter(comparison != "(H37Rv_96h - Mock_96h) - (H37Rv_24h - Mock_24h)" & comparison != "(H37Rv_96h - H37Rv_24h) - (Mock_96h - Mock_24h)" & comparison != "(dRD1_96h - Mock_96h) - (dRD1_24h - Mock_24h)" & comparison != "(dRD1_96h - dRD1_24h) - (Mock_96h - Mock_24h)" & comparison != "(dRD1_96h - dRD1_24h) - (H37Rv_96h - H37Rv_24h)" & comparison != "(H37Rv_96h - dRD1_96h) - (H37Rv_24h - dRD1_24h)") |>
+  select(-c(X.1, X, pi, protein_id, hit_annotation, Sph_UV_logFC, Sph_UV_pvalue, Sph_UV_AveExpr, Sph_UV_fdr, Sph_UV_hit_annotation, FA_UV_hit_annotation, FA_UV_logFC, FA_UV_pvalue, FA_UV_AveExpr, GG_StatAnnotation)) |>
+  mutate(comparison = case_when(comparison == "dRD1_24h - Mock_24h" ~ "\u0394RD1_24h - Mock_24h",
+                                comparison == "dRD1_96h - Mock_96h" ~ "\u0394RD1_96h - Mock_96h",
+                                comparison == "H37Rv_24h - dRD1_24h" ~ "H37Rv_24h - \u0394RD1_24h",
+                                comparison == "H37Rv_96h - dRD1_96h" ~ "H37Rv_96h - \u0394RD1_96h",
+                                comparison == "dRD1_96h - dRD1_24h" ~ "\u0394RD1_96h - \u0394RD1_24h",
+                                .default = comparison))
+
+Mtb_Data$comparison <- factor(pull(Mtb_Data, comparison), levels = c("H37Rv_24h - Mock_24h",
+                                                                     "H37Rv_96h - Mock_96h",
+                                                                     "\u0394RD1_24h - Mock_24h",
+                                                                     "\u0394RD1_96h - Mock_96h",
+                                                                     "H37Rv_24h - \u0394RD1_24h",
+                                                                     "H37Rv_96h - \u0394RD1_96h",
+                                                                     "H37Rv_96h - H37Rv_24h",
+                                                                     "\u0394RD1_96h - \u0394RD1_24h",
+                                                                     "Mock_96h - Mock_24h"))
+
+Mtb_Data <- Mtb_Data |> arrange(by = comparison)
+
+MtbvsComparisonList <- unique(Mtb_Data$comparison)
+
+length(MtbvsComparisonList)
+
+```
+
+## Baseline trifunctional probe analysis
+
+In this visualization tool, we have prepared the results of the baseline trifunctional probe analysis. In this experiment, we treated cells with four trifunctional probes to compare the proteins which interact with each probe. The goal of this experiment was to assess the similarities and differences between the interactomes of each probe.
+
+### Experimental Design
+
+THP-1 macrophages were activated and treated with each of the 4 lipid probes in quadruplicate. After treatment, +UV samples were irradiated with UV light to crosslink with interacting proteins. -UV samples were kept in the dark and reflect non-specific interactions. Each sample was collected via cell lysis and lipid-interacting proteins were enriched via a click chemistry-assisted bead pulldown. Enriched proteins were digested off the beads with trypsin, and analyzed using quantitative mass spectrometry. Proteins were identified using their m/z fragmentation and quantified using Tandem Mass Tagging. Below are several ways to depict these data.
+
+
+
+
+## Trifunctional probe interactomics during Mtb infection infection
+
+In this visualization tool, we have prepared the results of two independent mass spectrometry analyses. The tf-Sphingosine-treated samples are one complete dataset, and the tf-8:3-Fatty acid-treated samples are another. This visualization tool will allow you to qualitatively look at these results side-by-side and even against each other, but please note that quantitative differences should be viewed skeptically.
