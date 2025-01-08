@@ -1,5 +1,5 @@
 ---
-title: "Embeded data visualization Example"
+title: "Embedded data visualization Example"
 format: html
 ---
 ```{r setup, echo=FALSE, include=FALSE}
@@ -108,7 +108,7 @@ In this visualization tool, we have prepared the results of the baseline trifunc
 
 THP-1 macrophages were activated and treated with each of the 4 lipid probes in quadruplicate. After treatment, +UV samples were irradiated with UV light to crosslink with interacting proteins. -UV samples were kept in the dark and reflect non-specific interactions. Each sample was collected via cell lysis and lipid-interacting proteins were enriched via a click chemistry-assisted bead pulldown. Enriched proteins were digested off the beads with trypsin, and analyzed using quantitative mass spectrometry. Proteins were identified using their m/z fragmentation and quantified using Tandem Mass Tagging. Below are several ways to depict these data.
 
-
+![](/EmbeddedFiles/BaselineProteomics_ExperimentalDesign.png)
 
 
 ## Trifunctional probe interactomics during Mtb infection infection
