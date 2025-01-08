@@ -1,0 +1,23 @@
+---
+title: "Shiny App Example"
+format: html
+runtime: shiny
+---
+
+## Shiny
+
+The Shiny package provides a flexible, easy to use framework for creating interactive web applications with R. Quarto in turn includes support for embedding Shiny components and applets into documents created with the Knitr engine.
+
+Here's a live example of Shiny interactive components along with a brief explanation of the code required to create them:
+
+::: {.border}
+```{=html}
+ <iframe id="example1" src="https://gaelen-guzman.shinyapps.io/LipidInteractomicsViewer/" style="border: none; width: 100%; height: 720px" frameborder="0"></iframe>
+```
+
+:::
+
+Shiny makes it very straightforward to create interactive documents using only R. Unlike using JavaScript though, you will need to [deploy](shiny/running.qmd#deployment) documents that use Shiny to a server.
+
+To learn more see the articles on [Using Shiny with Quarto](shiny/).
+`
